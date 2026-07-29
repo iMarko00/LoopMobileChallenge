@@ -34,8 +34,8 @@ class ViewController: UIViewController {
         
         let nameField = RoundedTextField(originalText: "Name")
         let mailField = RoundedTextField(originalText: "E-Mail Address*")
-        let passwordField = RoundedTextField(originalText: "Password*")
-        let repeatPasswordField = RoundedTextField(originalText: "Confirm Password*")
+        let passwordField = RoundedTextField(originalText: "Password*", isSecuredTextField: true)
+        let repeatPasswordField = RoundedTextField(originalText: "Confirm Password*", isSecuredTextField: true)
         
         let stack = UIStackView(arrangedSubviews: [nameField, mailField, passwordField, repeatPasswordField])
         stack.axis = .vertical
@@ -54,9 +54,11 @@ class ViewController: UIViewController {
             loginHeaderImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             loginHeaderImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             loginHeaderImageView.heightAnchor.constraint(equalTo: loginHeaderImageView.widthAnchor, multiplier: headerAspectRatio),
+            
             stack.topAnchor.constraint(equalTo: loginHeaderImageView.bottomAnchor, constant: 34),
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -30),
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+            
             signUpButton.topAnchor.constraint(equalTo: stack.bottomAnchor, constant: 32),
             signUpButton.leadingAnchor.constraint(equalTo: stack.leadingAnchor),
             signUpButton.trailingAnchor.constraint(equalTo: stack.trailingAnchor),
