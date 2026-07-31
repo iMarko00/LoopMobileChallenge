@@ -2,27 +2,22 @@ import UIKit
 
 /// A reusable text field with rounded corners, drop shadow,
 /// and optional default text that behaves like a prompt until the user types.
-
-// TODO: Drop comments + improve the shadow and impl. the hide/show feature
 public final class RoundedTextField: UITextField {
     /// Text shown before the user types. It clears on first edit and reappears when left empty.
     var promptText: String = "Type here..." {
         didSet {
-            if showsPromptText {
-                applyPromptText()
-            }
+            viewModel.promptText = promptText
+            applyDisplayState()
         }
     }
 
-    private var showsPromptText = false
     private var originalText: String?
-    private let isSecuredTextField: Bool
-    private var isTextHidden = true
-    private var secureRawText = ""
-    private var isApplyingSecureTextUpdate = false
+    private let viewModel: RoundedTextFieldViewModel
     private let promptTextColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.4)
     private let inputTextColor = UIColor(red: 0, green: 0, blue: 0, alpha: 1)
     private let horizontalContentInset: CGFloat = 24
+    private var isApplyingProgrammaticTextUpdate = false
+    var onRawTextChanged: ((String) -> Void)?
     private lazy var visibilityButton: UIButton = {
         let button = UIButton(type: .system)
         button.tintColor = UIColor(red: 0, green: 0, blue: 0, alpha: 1)
@@ -31,23 +26,57 @@ public final class RoundedTextField: UITextField {
         return button
     }()
     
-    public init(originalText: String, isSecuredTextField: Bool = false) {
+    public init(
+        originalText: String,
+        isSecuredTextField: Bool = false,
+        isEmailField: Bool = false,
+        isPasswordField: Bool = false
+    ) {
         self.originalText = originalText
-        self.isSecuredTextField = isSecuredTextField
+        self.viewModel = RoundedTextFieldViewModel(
+            promptText: originalText,
+            isSecuredTextField: isSecuredTextField,
+            isEmailField: isEmailField,
+            isPasswordField: isPasswordField
+        )
         super.init(frame: .zero)
+        promptText = originalText
         commonInit()
     }
 
-    override init(frame: CGRect) { // TODO: Review if i really need both inits with coder and frame?
-        self.isSecuredTextField = false
+    override init(frame: CGRect) {
+        self.viewModel = RoundedTextFieldViewModel(
+            promptText: "Type here...",
+            isSecuredTextField: false,
+            isEmailField: false,
+            isPasswordField: false
+        )
         super.init(frame: frame)
         commonInit()
     }
 
     required init?(coder: NSCoder) {
-        self.isSecuredTextField = false
+        self.viewModel = RoundedTextFieldViewModel(
+            promptText: "Type here...",
+            isSecuredTextField: false,
+            isEmailField: false,
+            isPasswordField: false
+        )
         super.init(coder: coder)
         commonInit()
+    }
+
+    var rawText: String {
+        viewModel.rawText
+    }
+
+    var isValidEmail: Bool {
+        viewModel.isValidEmail
+    }
+
+    @discardableResult
+    func validateEmailIfNeeded() -> Bool {
+        viewModel.validateEmailIfNeeded()
     }
 
     public override func layoutSubviews() {
@@ -71,7 +100,17 @@ public final class RoundedTextField: UITextField {
         textColor = promptTextColor
         tintColor = .systemBlue
         autocorrectionType = .no
+        autocapitalizationType = .none
         font = UIFont(name: "SFProText-Semibold", size: 14) ?? .systemFont(ofSize: 14, weight: .semibold)
+
+        if viewModel.isEmailField {
+            keyboardType = .emailAddress
+            textContentType = .emailAddress
+        }
+
+        if viewModel.isPasswordField {
+            textContentType = .newPassword
+        }
 
         layer.cornerRadius = 16
         layer.borderWidth = 0.3
@@ -83,7 +122,7 @@ public final class RoundedTextField: UITextField {
         layer.shadowRadius = 8
         layer.shadowOffset = CGSize(width: 0, height: 2)
 
-        if isSecuredTextField {
+        if viewModel.isSecuredTextField {
             configureSecureToggle()
         }
 
@@ -96,33 +135,19 @@ public final class RoundedTextField: UITextField {
             promptText = originalText
         }
 
-        applyPromptText()
+        applyDisplayState()
     }
 
     @objc private func editingDidBegin() {
-        if showsPromptText {
-            text = nil
-            textColor = inputTextColor
-            showsPromptText = false
-        }
-
-        if isSecuredTextField {
-            applySecureDisplayText()
-        }
+        viewModel.beginEditing()
+        applyDisplayState()
+        onRawTextChanged?(viewModel.rawText)
     }
 
     @objc private func editingDidEnd() {
-        guard let current = text?.trimmingCharacters(in: .whitespacesAndNewlines), current.isEmpty else {
-            return
-        }
-        applyPromptText()
-    }
-
-    private func applyPromptText() {
-        text = promptText
-        textColor = promptTextColor
-        showsPromptText = true
-        secureRawText = ""
+        viewModel.endEditing()
+        applyDisplayState()
+        onRawTextChanged?(viewModel.rawText)
     }
 
     private func configureSecureToggle() {
@@ -140,51 +165,35 @@ public final class RoundedTextField: UITextField {
         rightView = rightContainer
         rightViewMode = .always
         updateVisibilityIcon()
-        applySecureDisplayText()
+        applyDisplayState()
     }
 
     private func updateVisibilityIcon() {
-        let imageName = isTextHidden ? "eye.slash" : "eye"
+        let imageName = viewModel.isTextHidden ? "eye.slash" : "eye"
         visibilityButton.setImage(UIImage(systemName: imageName), for: .normal)
-        visibilityButton.accessibilityLabel = isTextHidden ? "Show password" : "Hide password"
+        visibilityButton.accessibilityLabel = viewModel.isTextHidden ? "Show password" : "Hide password"
     }
 
     @objc private func toggleTextVisibility() {
-        guard isSecuredTextField else { return }
-
-        isTextHidden.toggle()
+        guard viewModel.isSecuredTextField else { return }
+        viewModel.toggleVisibility()
         updateVisibilityIcon()
-        applySecureDisplayText()
+        applyDisplayState()
+        onRawTextChanged?(viewModel.rawText)
     }
 
     @objc private func editingChanged() {
-        guard isSecuredTextField, !showsPromptText, !isApplyingSecureTextUpdate else { return }
-        textColor = inputTextColor
-
-        if isTextHidden {
-            let editedText = text ?? ""
-            let previousMaskedText = String(repeating: "*", count: secureRawText.count)
-
-            if editedText.count > previousMaskedText.count {
-                let appended = String(editedText.dropFirst(previousMaskedText.count))
-                secureRawText += appended
-            } else if editedText.count < previousMaskedText.count {
-                secureRawText = String(secureRawText.prefix(editedText.count))
-            }
-
-            applySecureDisplayText()
-        } else {
-            secureRawText = text ?? ""
-        }
+        guard !isApplyingProgrammaticTextUpdate else { return }
+        viewModel.updateFromEditing(displayedValue: text ?? "")
+        applyDisplayState()
+        onRawTextChanged?(viewModel.rawText)
     }
 
-    private func applySecureDisplayText() {
-        guard isSecuredTextField, !showsPromptText else { return }
-
-        isApplyingSecureTextUpdate = true
-        textColor = inputTextColor
-        super.text = isTextHidden ? String(repeating: "*", count: secureRawText.count) : secureRawText
-        isApplyingSecureTextUpdate = false
+    private func applyDisplayState() {
+        isApplyingProgrammaticTextUpdate = true
+        super.text = viewModel.displayedText
+        textColor = viewModel.showsPromptText ? promptTextColor : inputTextColor
+        isApplyingProgrammaticTextUpdate = false
     }
 
     public override func textRect(forBounds bounds: CGRect) -> CGRect {
