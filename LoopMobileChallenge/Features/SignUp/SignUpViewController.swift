@@ -10,6 +10,7 @@ import UIKit
 class SignUpViewController: UIViewController {
     private let fieldTextInset: CGFloat = 24
     private var hasAttemptedSubmit = false
+    private let viewModel = SignupViewModel(profileStore: ProfileStore())
 
     private let emailValidationLabel: UILabel = {
         let label = UILabel()
@@ -153,6 +154,8 @@ class SignUpViewController: UIViewController {
 
         setLoadingState(isLoading: true)
 
+        viewModel.submit(name: nameField?.rawText ?? "", email: emailField?.rawText ?? "")
+
         pendingSignUpWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
@@ -178,7 +181,7 @@ class SignUpViewController: UIViewController {
 
         let password = passwordField.rawText
         let repeatedPassword = repeatPasswordField.rawText
-        let isInvalid = password.isEmpty || repeatedPassword.isEmpty || password != repeatedPassword
+        let isInvalid = !viewModel.doPasswordsMatch(password: password, repeatPassword: repeatedPassword)
         passwordMismatchLabel.isHidden = !isInvalid
         setErrorContainer(passwordMismatchContainer, visible: isInvalid)
         passwordContainerStack?.spacing = isInvalid ? 8 : 0
@@ -197,7 +200,7 @@ class SignUpViewController: UIViewController {
             return
         }
 
-        let isValid = emailField.validateEmailIfNeeded()
+        let isValid = viewModel.isEmailValid(emailField.rawText)
         let shouldShowError = !isValid
         emailValidationLabel.isHidden = !shouldShowError
         setErrorContainer(emailValidationContainer, visible: shouldShowError)
@@ -210,12 +213,11 @@ class SignUpViewController: UIViewController {
         }
 
         let emailValue = emailField.rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let isEmailValid = !emailValue.isEmpty && emailField.validateEmailIfNeeded()
+        let isEmailValid = viewModel.isEmailValid(emailValue)
 
         let password = passwordField.rawText
         let repeatedPassword = repeatPasswordField.rawText
-        let hasPasswords = !password.isEmpty && !repeatedPassword.isEmpty
-        let doPasswordsMatch = hasPasswords && password == repeatedPassword
+        let doPasswordsMatch = viewModel.doPasswordsMatch(password: password, repeatPassword: repeatedPassword)
 
         return isEmailValid && doPasswordsMatch
     }
@@ -276,5 +278,4 @@ class SignUpViewController: UIViewController {
         let targetHeight: CGFloat = visible ? 16 : 0
         container.constraints.first(where: { $0.firstAttribute == .height })?.constant = targetHeight
     }
-    
 }

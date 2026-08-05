@@ -1,6 +1,7 @@
 import UIKit
 
 final class SplashViewController: UIViewController {
+    private let profileStore = ProfileStore()
     private let spinner = UIActivityIndicatorView(style: .large)
     private let subtitleLabel: UILabel = {
         let label = UILabel()
@@ -44,6 +45,14 @@ final class SplashViewController: UIViewController {
 
     private func showSignUp() {
         guard presentedViewController == nil else { return }
+
+        if profileStore.currentProfile != nil {
+            let homeViewController = HomeViewController()
+            homeViewController.modalPresentationStyle = .fullScreen
+            homeViewController.modalTransitionStyle = .crossDissolve
+            present(homeViewController, animated: true)
+            return
+        }
 
         let signUpViewController = SignUpViewController()
         signUpViewController.modalPresentationStyle = .fullScreen
