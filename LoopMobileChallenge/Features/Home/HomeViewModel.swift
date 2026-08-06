@@ -4,7 +4,7 @@ import Foundation
 final public class HomeViewModel {
     enum ViewState {
         case loading
-        case loaded(staffPicks: [Movie], favorites: [Movie])
+        case loaded(movies: [Movie], favorites: [Movie])
         case failed(Error)
     }
 
@@ -23,9 +23,7 @@ final public class HomeViewModel {
 
     func loadCatalog() async {
         await movieCatalog.load()
-        print("MovieIds: \(movieCatalog.allMovieIDs)")
         refreshViewState()
-        
     }
 
     func refreshViewState() {
@@ -35,12 +33,12 @@ final public class HomeViewModel {
         case .failed(let error):
             setViewState(.failed(error))
         case .loaded:
-            let staffPicks = movieCatalog.staffPickIDs.compactMap { movieCatalog.movie(for: $0) }
+            let movies = movieCatalog.allMovieIDs.compactMap { movieCatalog.movie(for: $0) }
             let favorites = movieCatalog.allMovieIDs
                 .filter { favoritesManager.isFavorite(id: $0) }
                 .compactMap { movieCatalog.movie(for: $0) }
 
-            setViewState(.loaded(staffPicks: staffPicks, favorites: favorites))
+            setViewState(.loaded(movies: movies, favorites: favorites))
         }
     }
 

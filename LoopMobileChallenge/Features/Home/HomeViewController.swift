@@ -1,9 +1,12 @@
 import UIKit
 
 final class HomeViewController: UIViewController {
+    private let minimumFavoritesCardCount = 3
     private var needsRefresh = false
     private var favoritesObserver: NSObjectProtocol?
     private var movies: [Movie] = []
+    private var favoriteMovies: [Movie] = []
+    private var staffPicksTableHeightConstraint: NSLayoutConstraint?
 
     private let viewModel = HomeViewModel(
         movieCatalog: MovieCatalog(),
@@ -14,10 +17,11 @@ final class HomeViewController: UIViewController {
     private let profileNameButton: UIButton = {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.titleLabel?.font = .preferredFont(forTextStyle: .largeTitle)
+        button.titleLabel?.font = UIFont(name: "SFProDisplay-Bold", size: 33) ?? .systemFont(ofSize: 33, weight: .bold)
+        
         button.titleLabel?.adjustsFontForContentSizeCategory = true
         button.titleLabel?.numberOfLines = 1
-        button.contentHorizontalAlignment = .right
+        button.contentHorizontalAlignment = .left
         button.setTitleColor(.label, for: .normal)
         return button
     }()
@@ -25,29 +29,92 @@ final class HomeViewController: UIViewController {
     private let headerSubtitleLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = .preferredFont(forTextStyle: .footnote)
+        label.font = UIFont(name: "SFProText-Medium", size: 11) ?? .systemFont(ofSize: 11, weight: .medium)
         label.textColor = .secondaryLabel
         label.text = "Hello 👋"
-        label.textAlignment = .right
+        label.textAlignment = .left
         label.adjustsFontForContentSizeCategory = true
         return label
     }()
 
-    private let tableView: UITableView = {
+    private let searchButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.configuration = .glass()
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.tintColor = .label
+        button.setImage(UIImage(systemName: "magnifyingglass"), for: .normal)
+        button.accessibilityLabel = "Search"
+        return button
+    }()
+
+    private let yourFavoritesLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        let regularFont = UIFont(name: "SFProText-Regular", size: 12) ?? .systemFont(ofSize: 12, weight: .regular)
+        let heavyFont = UIFont(name: "SFProText-Heavy", size: 12) ?? .systemFont(ofSize: 12, weight: .heavy)
+        let attributedText = NSMutableAttributedString(
+            string: "YOUR ",
+            attributes: [.font: regularFont]
+        )
+        attributedText.append(
+            NSAttributedString(
+                string: "FAVORITES",
+                attributes: [.font: heavyFont]
+            )
+        )
+
+        label.attributedText = attributedText
+        label.textColor = UIColor(red: 20.0 / 255.0, green: 28.0 / 255.0, blue: 37.0 / 255.0, alpha: 1)
+        label.textAlignment = .left
+        label.adjustsFontForContentSizeCategory = true
+        return label
+    }()
+    
+    private let favoritesCollectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        layout.scrollDirection = .horizontal
+        layout.minimumLineSpacing = 12
+
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.showsHorizontalScrollIndicator = false
+        collectionView.backgroundColor = .clear
+        collectionView.clipsToBounds = false
+        collectionView.layer.masksToBounds = false
+        collectionView.contentInset = UIEdgeInsets(top: 0, left: 30, bottom: 0, right: 16)
+        return collectionView
+    }()
+
+    private let staffPicksTableView: UITableView = {
         let tableView = UITableView(frame: .zero, style: .plain)
         tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.rowHeight = UITableView.automaticDimension
-        tableView.estimatedRowHeight = 120
-        tableView.separatorInset = .zero
+        tableView.rowHeight = 101
+        tableView.estimatedRowHeight = 101
+        tableView.separatorStyle = .none
+        tableView.isScrollEnabled = false
         return tableView
+    }()
+
+    private let contentScrollView: UIScrollView = {
+        let scrollView = UIScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.alwaysBounceVertical = true
+        scrollView.showsVerticalScrollIndicator = true
+        return scrollView
+    }()
+
+    private let contentContainerView: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
     }()
 
     private let headerStackView: UIStackView = {
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .vertical
-        stackView.spacing = 4
-        stackView.alignment = .trailing
+        stackView.spacing = 0
+        stackView.alignment = .leading
         return stackView
     }()
     
@@ -61,8 +128,6 @@ final class HomeViewController: UIViewController {
         }
 
         viewModel.refreshViewState()
-        movies = viewModel.allMovies()
-        tableView.reloadData()
         needsRefresh = false
     }
     
@@ -76,8 +141,6 @@ final class HomeViewController: UIViewController {
         Task { [weak self] in
             guard let self else { return }
             await self.viewModel.loadCatalog()
-            self.movies = self.viewModel.allMovies()
-            self.tableView.reloadData()
         }
     }
 
@@ -87,55 +150,127 @@ final class HomeViewController: UIViewController {
         }
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateStaffPicksTableHeight()
+    }
+
     private func setupUI() {
         headerStackView.addArrangedSubview(profileNameButton)
         headerStackView.addArrangedSubview(headerSubtitleLabel)
 
         profileNameButton.menu = makeProfileMenu()
         profileNameButton.showsMenuAsPrimaryAction = false
+        searchButton.addTarget(self, action: #selector(didTapSearch), for: .touchUpInside)
 
-        tableView.dataSource = self
-        tableView.delegate = self
-        tableView.register(HomeMovieSummaryCell.self, forCellReuseIdentifier: String(describing: HomeMovieSummaryCell.self))
+        staffPicksTableView.dataSource = self
+        staffPicksTableView.delegate = self
+        staffPicksTableView.register(HomeMovieSummaryCell.self, forCellReuseIdentifier: String(describing: HomeMovieSummaryCell.self))
 
-        view.addSubview(headerStackView)
-        view.addSubview(tableView)
+        favoritesCollectionView.dataSource = self
+        favoritesCollectionView.delegate = self
+        favoritesCollectionView.register(HomeFavoriteMovieCell.self, forCellWithReuseIdentifier: String(describing: HomeFavoriteMovieCell.self))
+
+        view.addSubview(searchButton)
+        view.addSubview(contentScrollView)
+        contentScrollView.addSubview(contentContainerView)
+
+        contentContainerView.addSubview(headerStackView)
+        contentContainerView.addSubview(yourFavoritesLabel)
+        contentContainerView.addSubview(favoritesCollectionView)
+        contentContainerView.addSubview(staffPicksTableView)
+
+        let tableHeightConstraint = staffPicksTableView.heightAnchor.constraint(equalToConstant: 0)
+        staffPicksTableHeightConstraint = tableHeightConstraint
 
         NSLayoutConstraint.activate([
-            headerStackView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 24),
-            headerStackView.leadingAnchor.constraint(equalTo: view.layoutMarginsGuide.leadingAnchor),
-            headerStackView.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+            searchButton.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
+            searchButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            searchButton.widthAnchor.constraint(equalToConstant: 44),
+            searchButton.heightAnchor.constraint(equalToConstant: 44),
 
-            tableView.topAnchor.constraint(equalTo: headerStackView.bottomAnchor, constant: 20),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            contentScrollView.topAnchor.constraint(equalTo: searchButton.bottomAnchor),
+            contentScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            contentScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            contentScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            contentContainerView.topAnchor.constraint(equalTo: contentScrollView.contentLayoutGuide.topAnchor),
+            contentContainerView.leadingAnchor.constraint(equalTo: contentScrollView.contentLayoutGuide.leadingAnchor),
+            contentContainerView.trailingAnchor.constraint(equalTo: contentScrollView.contentLayoutGuide.trailingAnchor),
+            contentContainerView.bottomAnchor.constraint(equalTo: contentScrollView.contentLayoutGuide.bottomAnchor),
+            contentContainerView.widthAnchor.constraint(equalTo: contentScrollView.frameLayoutGuide.widthAnchor),
+
+            headerStackView.topAnchor.constraint(equalTo: contentContainerView.topAnchor, constant: 0),
+            headerStackView.leadingAnchor.constraint(equalTo: contentContainerView.leadingAnchor, constant: 16),
+
+            yourFavoritesLabel.leadingAnchor.constraint(equalTo: contentContainerView.leadingAnchor, constant: 20),
+            yourFavoritesLabel.topAnchor.constraint(equalTo: headerStackView.bottomAnchor, constant: 26),
+
+            favoritesCollectionView.topAnchor.constraint(equalTo: yourFavoritesLabel.bottomAnchor, constant: 12),
+            favoritesCollectionView.leadingAnchor.constraint(equalTo: contentContainerView.leadingAnchor),
+            favoritesCollectionView.trailingAnchor.constraint(equalTo: contentContainerView.trailingAnchor),
+            favoritesCollectionView.heightAnchor.constraint(equalToConstant: 286),
+
+            staffPicksTableView.topAnchor.constraint(equalTo: favoritesCollectionView.bottomAnchor, constant: 16),
+            staffPicksTableView.leadingAnchor.constraint(equalTo: contentContainerView.leadingAnchor, constant: 20),
+            staffPicksTableView.trailingAnchor.constraint(equalTo: contentContainerView.trailingAnchor, constant: -20),
+            staffPicksTableView.bottomAnchor.constraint(equalTo: contentContainerView.bottomAnchor),
+            tableHeightConstraint
         ])
 
         updateHeader()
     }
 
+    @objc private func didTapSearch() {
+        // Intentionally empty until Search screen wiring is implemented.
+    }
+
     private func bindViewModel() {
         viewModel.onStateChange = { [weak self] state in
             guard let self else { return }
-
-            switch state {
-            case .loading:
-                self.movies = []
-                self.tableView.reloadData()
-            case .loaded:
-                self.movies = self.viewModel.allMovies()
-                self.tableView.reloadData()
-            case .failed:
-                self.movies = []
-                self.tableView.reloadData()
-            }
+            self.render(state: state)
         }
+    }
+
+    private func render(state: HomeViewModel.ViewState) {
+        switch state {
+        case .loading:
+            movies = []
+            favoriteMovies = []
+        case .loaded(let allMovies, let favorites):
+            movies = allMovies
+            favoriteMovies = favorites
+        case .failed:
+            movies = []
+            favoriteMovies = []
+        }
+
+        staffPicksTableView.reloadData()
+        favoritesCollectionView.reloadData()
+        updateStaffPicksTableHeight()
+
+        // Recalculate after the run loop to capture final auto-layout cell heights.
+        DispatchQueue.main.async { [weak self] in
+            self?.updateStaffPicksTableHeight()
+        }
+    }
+
+    private func updateStaffPicksTableHeight() {
+        staffPicksTableView.layoutIfNeeded()
+        staffPicksTableView.beginUpdates()
+        staffPicksTableView.endUpdates()
+
+        let contentHeight = staffPicksTableView.contentSize.height
+        guard staffPicksTableHeightConstraint?.constant != contentHeight else {
+            return
+        }
+
+        staffPicksTableHeightConstraint?.constant = contentHeight
     }
 
     private func updateHeader() {
         let displayName = viewModel.displayName
-        profileNameButton.setTitle(displayName.isEmpty ? "Welcome" : displayName, for: .normal)
+        profileNameButton.setTitle(displayName, for: .normal)
     }
 
     private func observeFavoritesChanges() {
@@ -192,5 +327,39 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
 
         cell.configure(with: movies[indexPath.row])
         return cell
+    }
+}
+
+extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+    private var displayedFavoriteMovies: [Movie] {
+        if favoriteMovies.isEmpty {
+            return Array(movies.prefix(minimumFavoritesCardCount))
+        }
+
+        return favoriteMovies
+    }
+
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        max(displayedFavoriteMovies.count, minimumFavoritesCardCount)
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        guard let cell = collectionView.dequeueReusableCell(
+            withReuseIdentifier: String(describing: HomeFavoriteMovieCell.self),
+            for: indexPath
+        ) as? HomeFavoriteMovieCell else {
+            return UICollectionViewCell()
+        }
+
+        if indexPath.item < displayedFavoriteMovies.count {
+            cell.configure(with: displayedFavoriteMovies[indexPath.item])
+        } else {
+            cell.configurePlaceholder()
+        }
+        return cell
+    }
+
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        CGSize(width: 182, height: 270)
     }
 }

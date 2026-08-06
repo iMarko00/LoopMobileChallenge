@@ -61,7 +61,7 @@ final class MovieCatalog {
 
             do {
                 let movies = try decoder.decode([Movie].self, from: data)
-                print("Decoded into Movies: \(movies)")
+                print("Decoded into Movies: \(movies.first)")
                 return movies
             } catch {
                 throw CatalogError.decodingFailed(url: url, underlying: error)
