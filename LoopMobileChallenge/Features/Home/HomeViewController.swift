@@ -1,7 +1,6 @@
 import UIKit
 
 final class HomeViewController: UIViewController {
-    private let minimumFavoritesCardCount = 3
     private var needsRefresh = false
     private var favoritesObserver: NSObjectProtocol?
     private var movies: [Movie] = []
@@ -146,6 +145,16 @@ final class HomeViewController: UIViewController {
         stackView.alignment = .leading
         return stackView
     }()
+
+    private let favoritesEmptyLabel: UILabel = {
+        let label = UILabel()
+        label.text = "You have no favorites selected yet"
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        label.textColor = .secondaryLabel
+        label.font = UIFont(name: "SFProText-Regular", size: 15) ?? .systemFont(ofSize: 15, weight: .regular)
+        return label
+    }()
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
@@ -203,7 +212,14 @@ final class HomeViewController: UIViewController {
 
         favoritesCollectionView.dataSource = self
         favoritesCollectionView.delegate = self
-        favoritesCollectionView.register(HomeFavoriteMovieCell.self, forCellWithReuseIdentifier: String(describing: HomeFavoriteMovieCell.self))
+        favoritesCollectionView.register(
+            HomeFavoriteMovieCell.self,
+            forCellWithReuseIdentifier: String(describing: HomeFavoriteMovieCell.self)
+        )
+        favoritesCollectionView.register(
+            HomeFavoriteMoviesMoreCell.self,
+            forCellWithReuseIdentifier: String(describing: HomeFavoriteMoviesMoreCell.self)
+        )
 
         view.addSubview(searchButton)
         view.addSubview(contentScrollView)
@@ -296,6 +312,8 @@ final class HomeViewController: UIViewController {
             favoriteMovies = []
         }
 
+        updateFavoritesEmptyState()
+
         staffPicksTableView.reloadData()
         favoritesCollectionView.reloadData()
         updateStaffPicksTableHeight()
@@ -304,6 +322,10 @@ final class HomeViewController: UIViewController {
         DispatchQueue.main.async { [weak self] in
             self?.updateStaffPicksTableHeight()
         }
+    }
+
+    private func updateFavoritesEmptyState() {
+        favoritesCollectionView.backgroundView = favoriteMovies.isEmpty ? favoritesEmptyLabel : nil
     }
 
     private func updateStaffPicksTableHeight() {
@@ -418,19 +440,22 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
 }
 
 extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
-    private var displayedFavoriteMovies: [Movie] {
-        if favoriteMovies.isEmpty {
-            return Array(movies.prefix(minimumFavoritesCardCount))
-        }
-
-        return favoriteMovies
-    }
-
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        max(displayedFavoriteMovies.count, minimumFavoritesCardCount)
+        min(favoriteMovies.count, 3) + (favoriteMovies.count >= 3 ? 1 : 0)
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        if indexPath.item == 3 {
+            guard let cell = collectionView.dequeueReusableCell(
+                withReuseIdentifier: String(describing: HomeFavoriteMoviesMoreCell.self),
+                for: indexPath
+            ) as? HomeFavoriteMoviesMoreCell else {
+                return UICollectionViewCell()
+            }
+            
+            return cell
+        }
+        
         guard let cell = collectionView.dequeueReusableCell(
             withReuseIdentifier: String(describing: HomeFavoriteMovieCell.self),
             for: indexPath
@@ -438,16 +463,16 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
             return UICollectionViewCell()
         }
 
-        if indexPath.item < displayedFavoriteMovies.count {
-            cell.configure(with: displayedFavoriteMovies[indexPath.item])
-        } else {
-            cell.configurePlaceholder()
-        }
+        cell.configure(with: favoriteMovies[indexPath.item])
         return cell
     }
 
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        CGSize(width: 182, height: 270)
+        if indexPath.item == 3 {
+            return CGSize(width: 91, height: 33)
+        }
+        
+        return CGSize(width: 182, height: 270)
     }
 }
 

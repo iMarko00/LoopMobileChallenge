@@ -11,7 +11,8 @@ final class MovieCatalog {
     private(set) var state: CatalogState = .idle
     private(set) var allMovieIDs: [Int] = []
     private(set) var staffPickIDs: [Int] = []
-    private var moviesByID: [Int: Movie] = [:]
+    private(set) var staffPickedMovies: [Movie] = []
+    private var allMovies: [Movie] = []
 
     init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
         self.session = session
@@ -22,21 +23,22 @@ final class MovieCatalog {
 
     func load() async {
         state = .loading
+        allMovieIDs = []
+        staffPickIDs = []
+        staffPickedMovies = []
+        allMovies = []
 
         do {
             async let allMoviesTask = fetchMovies(from: allMoviesURL)
             print("Called fetchMovies(from:) with \(allMoviesURL)")
             async let staffPicksTask = fetchMovies(from: staffPicksURL)
             print("Called fetchMovies(from:) with \(staffPicksURL)")
-            let (allMovies, staffPicks) = try await (allMoviesTask, staffPicksTask)
+            let (allMoviesResponse, staffPicksResponse) = try await (allMoviesTask, staffPicksTask)
 
-            allMovieIDs = allMovies.map(\.id)
-            staffPickIDs = staffPicks.map(\.id)
-
-            var mergedByID: [Int: Movie] = [:]
-            allMovies.forEach { mergedByID[$0.id] = $0 }
-            staffPicks.forEach { mergedByID[$0.id] = $0 }
-            moviesByID = mergedByID
+            allMovies = allMoviesResponse
+            allMovieIDs = allMoviesResponse.map(\.id)
+            staffPickIDs = staffPicksResponse.map(\.id)
+            staffPickedMovies = staffPicksResponse
 
             state = .loaded
         } catch {
@@ -45,7 +47,7 @@ final class MovieCatalog {
     }
 
     func movie(for id: Int) -> Movie? {
-        moviesByID[id]
+        allMovies.first(where: { $0.id == id })
     }
 
     private func fetchMovies(from url: URL) async throws -> [Movie] {

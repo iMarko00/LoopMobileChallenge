@@ -4,7 +4,7 @@ final class MovieSummaryCell: UITableViewCell {
     private let filledStarColor = UIColor(red: 253.0 / 255.0, green: 158.0 / 255.0, blue: 2.0 / 255.0, alpha: 1.0)
     private let emptyStarColor = UIColor(red: 20.0 / 255.0, green: 28.0 / 255.0, blue: 37.0 / 255.0, alpha: 0.1)
 
-    private let coverView = MovieCoverView()
+    private let coverView = MovieCoverView(drawsShadow: false)
     private let yearLabel = UILabel()
     private let titleLabel = UILabel()
     private let starsStackView = UIStackView()

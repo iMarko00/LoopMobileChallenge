@@ -1,20 +1,23 @@
 import UIKit
 
 final class MovieCoverView: UIView {
+    private let drawsShadow: Bool
 	private static let imageCache = NSCache<NSURL, UIImage>()
 
 	private let imageView = UIImageView()
 	private var imageLoadTask: Task<Void, Never>?
 
-	override init(frame: CGRect) {
-		super.init(frame: frame)
-		setupUI()
-	}
+    init(frame: CGRect = .zero, drawsShadow: Bool = true) {
+        self.drawsShadow = drawsShadow
+        super.init(frame: frame)
+        setupUI()
+    }
 
-	required init?(coder: NSCoder) {
-		super.init(coder: coder)
-		setupUI()
-	}
+    required init?(coder: NSCoder) {
+        self.drawsShadow = true
+        super.init(coder: coder)
+        setupUI()
+    }
 
 	deinit {
 		imageLoadTask?.cancel()
@@ -61,25 +64,46 @@ final class MovieCoverView: UIView {
 		imageView.image = nil
 		imageView.backgroundColor = .secondarySystemBackground
 	}
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
 
-	private func setupUI() {
-		translatesAutoresizingMaskIntoConstraints = false
-		layer.cornerRadius = 14
-		layer.cornerCurve = .continuous
-		layer.masksToBounds = true
+        guard drawsShadow else { return }
 
-		imageView.translatesAutoresizingMaskIntoConstraints = false
-		imageView.contentMode = .scaleAspectFill
-		imageView.backgroundColor = .secondarySystemBackground
-		imageView.clipsToBounds = true
-
-		addSubview(imageView)
-
-		NSLayoutConstraint.activate([
-			imageView.topAnchor.constraint(equalTo: topAnchor),
-			imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
-			imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
-			imageView.bottomAnchor.constraint(equalTo: bottomAnchor)
-		])
-	}
+        layer.shadowPath = UIBezierPath(
+            roundedRect: bounds,
+            cornerRadius: 14
+        ).cgPath
+    }
+    
+    private func setupUI() {
+        translatesAutoresizingMaskIntoConstraints = false
+        
+        layer.cornerRadius = 14
+        layer.cornerCurve = .continuous
+        layer.masksToBounds = false
+        
+        if drawsShadow {
+            layer.shadowColor = UIColor.black.cgColor
+            layer.shadowOpacity = 0.30
+            layer.shadowRadius = 10
+            layer.shadowOffset = CGSize(width: 0, height: 5)
+        }
+        
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.contentMode = .scaleAspectFill
+        imageView.backgroundColor = .secondarySystemBackground
+        imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = 14
+        imageView.layer.cornerCurve = .continuous
+        
+        addSubview(imageView)
+        
+        NSLayoutConstraint.activate([
+            imageView.topAnchor.constraint(equalTo: topAnchor),
+            imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            imageView.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+    }
 }
