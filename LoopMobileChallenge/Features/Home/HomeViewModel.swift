@@ -47,6 +47,10 @@ final public class HomeViewModel {
         refreshViewState()
     }
 
+    func isFavorite(id: Int) -> Bool {
+        favoritesManager.isFavorite(id: id)
+    }
+
     func allMovies() -> [Movie] {
         guard case .loaded = movieCatalog.state else {
             return []

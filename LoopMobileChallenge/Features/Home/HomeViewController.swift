@@ -7,6 +7,11 @@ final class HomeViewController: UIViewController {
     private var movies: [Movie] = []
     private var favoriteMovies: [Movie] = []
     private var staffPicksTableHeightConstraint: NSLayoutConstraint?
+    private let softEdgeHeight: CGFloat = 20
+    private let topSoftEdgeView = UIView()
+    private let bottomSoftEdgeView = UIView()
+    private let topSoftEdgeLayer = CAGradientLayer()
+    private let bottomSoftEdgeLayer = CAGradientLayer()
 
     private let viewModel = HomeViewModel(
         movieCatalog: MovieCatalog(),
@@ -60,6 +65,30 @@ final class HomeViewController: UIViewController {
             NSAttributedString(
                 string: "FAVORITES",
                 attributes: [.font: heavyFont]
+            )
+        )
+
+        label.attributedText = attributedText
+        label.textColor = UIColor(red: 20.0 / 255.0, green: 28.0 / 255.0, blue: 37.0 / 255.0, alpha: 1)
+        label.textAlignment = .left
+        label.adjustsFontForContentSizeCategory = true
+        return label
+    }()
+
+    private let staffPicksTitleLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        let regularFont = UIFont(name: "SFProText-Regular", size: 12) ?? .systemFont(ofSize: 12, weight: .regular)
+        let boldFont = UIFont(name: "SFProText-Bold", size: 12) ?? .systemFont(ofSize: 12, weight: .bold)
+        let attributedText = NSMutableAttributedString(
+            string: "OUR ",
+            attributes: [.font: regularFont]
+        )
+        attributedText.append(
+            NSAttributedString(
+                string: "STAFF PICKS",
+                attributes: [.font: boldFont]
             )
         )
 
@@ -153,6 +182,8 @@ final class HomeViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         updateStaffPicksTableHeight()
+        updateSoftEdgeLayerFrames()
+        updateSoftEdgeVisibility()
     }
 
     private func setupUI() {
@@ -162,10 +193,13 @@ final class HomeViewController: UIViewController {
         profileNameButton.menu = makeProfileMenu()
         profileNameButton.showsMenuAsPrimaryAction = false
         searchButton.addTarget(self, action: #selector(didTapSearch), for: .touchUpInside)
+        contentScrollView.delegate = self
+        topSoftEdgeView.translatesAutoresizingMaskIntoConstraints = false
+        bottomSoftEdgeView.translatesAutoresizingMaskIntoConstraints = false
 
         staffPicksTableView.dataSource = self
         staffPicksTableView.delegate = self
-        staffPicksTableView.register(HomeMovieSummaryCell.self, forCellReuseIdentifier: String(describing: HomeMovieSummaryCell.self))
+        staffPicksTableView.register(MovieSummaryCell.self, forCellReuseIdentifier: String(describing: MovieSummaryCell.self))
 
         favoritesCollectionView.dataSource = self
         favoritesCollectionView.delegate = self
@@ -173,11 +207,14 @@ final class HomeViewController: UIViewController {
 
         view.addSubview(searchButton)
         view.addSubview(contentScrollView)
+        view.addSubview(topSoftEdgeView)
+        view.addSubview(bottomSoftEdgeView)
         contentScrollView.addSubview(contentContainerView)
 
         contentContainerView.addSubview(headerStackView)
         contentContainerView.addSubview(yourFavoritesLabel)
         contentContainerView.addSubview(favoritesCollectionView)
+        contentContainerView.addSubview(staffPicksTitleLabel)
         contentContainerView.addSubview(staffPicksTableView)
 
         let tableHeightConstraint = staffPicksTableView.heightAnchor.constraint(equalToConstant: 0)
@@ -189,10 +226,20 @@ final class HomeViewController: UIViewController {
             searchButton.widthAnchor.constraint(equalToConstant: 44),
             searchButton.heightAnchor.constraint(equalToConstant: 44),
 
-            contentScrollView.topAnchor.constraint(equalTo: searchButton.bottomAnchor),
+            contentScrollView.topAnchor.constraint(equalTo: searchButton.bottomAnchor, constant: 4),
             contentScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             contentScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             contentScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            topSoftEdgeView.topAnchor.constraint(equalTo: contentScrollView.topAnchor),
+            topSoftEdgeView.leadingAnchor.constraint(equalTo: contentScrollView.leadingAnchor),
+            topSoftEdgeView.trailingAnchor.constraint(equalTo: contentScrollView.trailingAnchor),
+            topSoftEdgeView.heightAnchor.constraint(equalToConstant: softEdgeHeight),
+
+            bottomSoftEdgeView.bottomAnchor.constraint(equalTo: contentScrollView.bottomAnchor),
+            bottomSoftEdgeView.leadingAnchor.constraint(equalTo: contentScrollView.leadingAnchor),
+            bottomSoftEdgeView.trailingAnchor.constraint(equalTo: contentScrollView.trailingAnchor),
+            bottomSoftEdgeView.heightAnchor.constraint(equalToConstant: softEdgeHeight),
 
             contentContainerView.topAnchor.constraint(equalTo: contentScrollView.contentLayoutGuide.topAnchor),
             contentContainerView.leadingAnchor.constraint(equalTo: contentScrollView.contentLayoutGuide.leadingAnchor),
@@ -211,13 +258,17 @@ final class HomeViewController: UIViewController {
             favoritesCollectionView.trailingAnchor.constraint(equalTo: contentContainerView.trailingAnchor),
             favoritesCollectionView.heightAnchor.constraint(equalToConstant: 286),
 
-            staffPicksTableView.topAnchor.constraint(equalTo: favoritesCollectionView.bottomAnchor, constant: 16),
+            staffPicksTitleLabel.topAnchor.constraint(equalTo: favoritesCollectionView.bottomAnchor, constant: 40),
+            staffPicksTitleLabel.leadingAnchor.constraint(equalTo: contentContainerView.leadingAnchor, constant: 20),
+
+            staffPicksTableView.topAnchor.constraint(equalTo: staffPicksTitleLabel.bottomAnchor, constant: 20),
             staffPicksTableView.leadingAnchor.constraint(equalTo: contentContainerView.leadingAnchor, constant: 20),
             staffPicksTableView.trailingAnchor.constraint(equalTo: contentContainerView.trailingAnchor, constant: -20),
             staffPicksTableView.bottomAnchor.constraint(equalTo: contentContainerView.bottomAnchor),
             tableHeightConstraint
         ])
 
+        setupSoftEdgeViews()
         updateHeader()
     }
 
@@ -273,6 +324,38 @@ final class HomeViewController: UIViewController {
         profileNameButton.setTitle(displayName, for: .normal)
     }
 
+    private func setupSoftEdgeViews() {
+        topSoftEdgeView.isUserInteractionEnabled = false
+        bottomSoftEdgeView.isUserInteractionEnabled = false
+
+        let baseColor = (view.backgroundColor ?? .systemBackground).resolvedColor(with: traitCollection)
+
+        topSoftEdgeLayer.colors = [baseColor.cgColor, baseColor.withAlphaComponent(0).cgColor]
+        topSoftEdgeLayer.locations = [0, 1]
+
+        bottomSoftEdgeLayer.colors = [baseColor.withAlphaComponent(0).cgColor, baseColor.cgColor]
+        bottomSoftEdgeLayer.locations = [0, 1]
+
+        topSoftEdgeView.layer.addSublayer(topSoftEdgeLayer)
+        bottomSoftEdgeView.layer.addSublayer(bottomSoftEdgeLayer)
+    }
+
+    private func updateSoftEdgeLayerFrames() {
+        topSoftEdgeLayer.frame = topSoftEdgeView.bounds
+        bottomSoftEdgeLayer.frame = bottomSoftEdgeView.bounds
+    }
+
+    private func updateSoftEdgeVisibility() {
+        let topOffset = contentScrollView.contentOffset.y + contentScrollView.adjustedContentInset.top
+        let maxOffset = max(
+            0,
+            contentScrollView.contentSize.height - contentScrollView.bounds.height + contentScrollView.adjustedContentInset.bottom
+        )
+
+        topSoftEdgeView.alpha = topOffset > 0.5 ? 1 : 0
+        bottomSoftEdgeView.alpha = topOffset < (maxOffset - 0.5) ? 1 : 0
+    }
+
     private func observeFavoritesChanges() {
         favoritesObserver = NotificationCenter.default.addObserver(
             forName: .favoritesDidChange,
@@ -318,14 +401,18 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let movie = movies[indexPath.row]
         guard let cell = tableView.dequeueReusableCell(
-            withIdentifier: String(describing: HomeMovieSummaryCell.self),
+            withIdentifier: String(describing: MovieSummaryCell.self),
             for: indexPath
-        ) as? HomeMovieSummaryCell else {
+        ) as? MovieSummaryCell else {
             return UITableViewCell(style: .default, reuseIdentifier: nil)
         }
 
-        cell.configure(with: movies[indexPath.row])
+        cell.configure(with: movie, isFavorite: viewModel.isFavorite(id: movie.id))
+        cell.onFavoriteToggle = { [weak self] movieID in
+            self?.viewModel.toggleFavorite(id: movieID)
+        }
         return cell
     }
 }
@@ -361,5 +448,15 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
 
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         CGSize(width: 182, height: 270)
+    }
+}
+
+extension HomeViewController: UIScrollViewDelegate {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard scrollView === contentScrollView else {
+            return
+        }
+
+        updateSoftEdgeVisibility()
     }
 }

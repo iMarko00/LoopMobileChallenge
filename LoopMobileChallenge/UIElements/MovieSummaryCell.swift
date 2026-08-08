@@ -1,6 +1,6 @@
 import UIKit
 
-final class HomeMovieSummaryCell: UITableViewCell {
+final class MovieSummaryCell: UITableViewCell {
     private let filledStarColor = UIColor(red: 253.0 / 255.0, green: 158.0 / 255.0, blue: 2.0 / 255.0, alpha: 1.0)
     private let emptyStarColor = UIColor(red: 20.0 / 255.0, green: 28.0 / 255.0, blue: 37.0 / 255.0, alpha: 0.1)
 
@@ -8,10 +8,13 @@ final class HomeMovieSummaryCell: UITableViewCell {
     private let yearLabel = UILabel()
     private let titleLabel = UILabel()
     private let starsStackView = UIStackView()
-    private let favoriteImageView = UIImageView()
+    private let favoriteBadge = FavoriteBadge()
     private let infoStackView = UIStackView()
     private let hStackView = UIStackView()
     private var starImageViews: [UIImageView] = []
+    private var currentMovieID: Int?
+
+    var onFavoriteToggle: ((Int) -> Void)?
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -22,12 +25,13 @@ final class HomeMovieSummaryCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func configure(with movie: Movie) {
+    func configure(with movie: Movie, isFavorite: Bool) {
+        currentMovieID = movie.id
         yearLabel.text = String(movie.releaseDate.prefix(4))
         titleLabel.text = movie.title
         coverView.configure(posterURLString: movie.posterUrl)
         updateStars(for: movie.rating)
-        updateBookmarkIcon()
+        favoriteBadge.isFavorite = isFavorite
     }
 
     override func prepareForReuse() {
@@ -35,13 +39,10 @@ final class HomeMovieSummaryCell: UITableViewCell {
         coverView.resetForReuse()
         yearLabel.text = nil
         titleLabel.text = nil
+        currentMovieID = nil
+        onFavoriteToggle = nil
         updateStars(for: 0)
-        updateBookmarkIcon()
-    }
-
-    override func setSelected(_ selected: Bool, animated: Bool) {
-        super.setSelected(selected, animated: animated)
-        updateBookmarkIcon()
+        favoriteBadge.isFavorite = false
     }
 
     private func setupUI() {
@@ -58,8 +59,7 @@ final class HomeMovieSummaryCell: UITableViewCell {
         titleLabel.font = UIFont(name: "SFProDisplay-Bold", size: 16) ?? .systemFont(ofSize: 16, weight: .bold)
         titleLabel.textColor = .label
         titleLabel.numberOfLines = 1
-        titleLabel.adjustsFontSizeToFitWidth = true
-        titleLabel.minimumScaleFactor = 0.8
+        titleLabel.adjustsFontSizeToFitWidth = false
         titleLabel.lineBreakMode = .byTruncatingTail
 
         hStackView.axis = .horizontal
@@ -69,13 +69,15 @@ final class HomeMovieSummaryCell: UITableViewCell {
 
         infoStackView.axis = .vertical
         infoStackView.spacing = 4
-        infoStackView.alignment = .fill
+        infoStackView.alignment = .leading
         infoStackView.translatesAutoresizingMaskIntoConstraints = false
 
         starsStackView.axis = .horizontal
         starsStackView.spacing = 2
         starsStackView.alignment = .center
         starsStackView.translatesAutoresizingMaskIntoConstraints = false
+        starsStackView.setContentCompressionResistancePriority(.required, for: .horizontal)
+        starsStackView.setContentHuggingPriority(.required, for: .horizontal)
 
         for _ in 0..<5 {
             let starImageView = UIImageView()
@@ -92,16 +94,9 @@ final class HomeMovieSummaryCell: UITableViewCell {
             ])
         }
 
-        favoriteImageView.translatesAutoresizingMaskIntoConstraints = false
-        favoriteImageView.image = UIImage(systemName: "bookmark")
-        favoriteImageView.tintColor = .label
-        favoriteImageView.contentMode = .scaleAspectFit
-        favoriteImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
-        favoriteImageView.setContentHuggingPriority(.required, for: .horizontal)
-
-        let spacerView = UIView()
-        spacerView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        spacerView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        favoriteBadge.setContentCompressionResistancePriority(.required, for: .horizontal)
+        favoriteBadge.setContentHuggingPriority(.required, for: .horizontal)
+        favoriteBadge.addTarget(self, action: #selector(didTapFavoriteBadge), for: .valueChanged)
 
         contentView.addSubview(hStackView)
 
@@ -112,11 +107,17 @@ final class HomeMovieSummaryCell: UITableViewCell {
         hStackView.addArrangedSubview(coverView)
         hStackView.setCustomSpacing(27, after: coverView)
         hStackView.addArrangedSubview(infoStackView)
-        hStackView.addArrangedSubview(spacerView)
-        hStackView.addArrangedSubview(favoriteImageView)
+        hStackView.addArrangedSubview(favoriteBadge)
+        hStackView.setCustomSpacing(8, after: infoStackView)
 
-        infoStackView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        infoStackView.setContentCompressionResistancePriority(.required, for: .horizontal)
         infoStackView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        titleLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        // Cap the title line width to the design target when space allows
+        let titleTargetWidth = titleLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 220.5)
+        titleTargetWidth.priority = .required
+        titleTargetWidth.isActive = true
 
         NSLayoutConstraint.activate([
             hStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
@@ -127,9 +128,14 @@ final class HomeMovieSummaryCell: UITableViewCell {
             coverView.widthAnchor.constraint(equalToConstant: 64),
             coverView.heightAnchor.constraint(equalToConstant: 89),
 
-            favoriteImageView.widthAnchor.constraint(equalToConstant: 13.5),
-            favoriteImageView.heightAnchor.constraint(equalToConstant: 19)
+            favoriteBadge.widthAnchor.constraint(equalToConstant: 18),
+            favoriteBadge.heightAnchor.constraint(equalToConstant: 18)
         ])
+    }
+
+    @objc private func didTapFavoriteBadge() {
+        guard let currentMovieID else { return }
+        onFavoriteToggle?(currentMovieID)
     }
 
     private func updateStars(for rating: Double) {
@@ -141,8 +147,4 @@ final class HomeMovieSummaryCell: UITableViewCell {
         }
     }
 
-    private func updateBookmarkIcon() {
-        let symbolName = isSelected ? "bookmark.fill" : "bookmark"
-        favoriteImageView.image = UIImage(systemName: symbolName)
-    }
 }
