@@ -1,17 +1,14 @@
 import UIKit
 
 final class MovieSummaryCell: UITableViewCell {
-    private let filledStarColor = UIColor(red: 253.0 / 255.0, green: 158.0 / 255.0, blue: 2.0 / 255.0, alpha: 1.0)
-    private let emptyStarColor = UIColor(red: 20.0 / 255.0, green: 28.0 / 255.0, blue: 37.0 / 255.0, alpha: 0.1)
-
+    
     private let coverView = MovieCoverView(drawsShadow: false)
     private let yearLabel = UILabel()
     private let titleLabel = UILabel()
-    private let starsStackView = UIStackView()
     private let favoriteBadge = FavoriteBadge()
     private let infoStackView = UIStackView()
     private let hStackView = UIStackView()
-    private var starImageViews: [UIImageView] = []
+    private let starRatingView = StarRatingView()
     private var currentMovieID: Int?
 
     var onFavoriteToggle: ((Int) -> Void)?
@@ -30,8 +27,8 @@ final class MovieSummaryCell: UITableViewCell {
         yearLabel.text = String(movie.releaseDate.prefix(4))
         titleLabel.text = movie.title
         coverView.configure(posterURLString: movie.posterUrl)
-        updateStars(for: movie.rating)
         favoriteBadge.isFavorite = isFavorite
+        starRatingView.configure(with: movie.rating)
     }
 
     override func prepareForReuse() {
@@ -41,7 +38,6 @@ final class MovieSummaryCell: UITableViewCell {
         titleLabel.text = nil
         currentMovieID = nil
         onFavoriteToggle = nil
-        updateStars(for: 0)
         favoriteBadge.isFavorite = false
     }
 
@@ -72,28 +68,6 @@ final class MovieSummaryCell: UITableViewCell {
         infoStackView.alignment = .leading
         infoStackView.translatesAutoresizingMaskIntoConstraints = false
 
-        starsStackView.axis = .horizontal
-        starsStackView.spacing = 2
-        starsStackView.alignment = .center
-        starsStackView.translatesAutoresizingMaskIntoConstraints = false
-        starsStackView.setContentCompressionResistancePriority(.required, for: .horizontal)
-        starsStackView.setContentHuggingPriority(.required, for: .horizontal)
-
-        for _ in 0..<5 {
-            let starImageView = UIImageView()
-            starImageView.translatesAutoresizingMaskIntoConstraints = false
-            starImageView.contentMode = .scaleAspectFit
-            starImageView.tintColor = emptyStarColor
-            starImageView.image = UIImage(systemName: "star.fill")
-            starImageViews.append(starImageView)
-            starsStackView.addArrangedSubview(starImageView)
-
-            NSLayoutConstraint.activate([
-                starImageView.widthAnchor.constraint(equalToConstant: 12),
-                starImageView.heightAnchor.constraint(equalToConstant: 12)
-            ])
-        }
-
         favoriteBadge.setContentCompressionResistancePriority(.required, for: .horizontal)
         favoriteBadge.setContentHuggingPriority(.required, for: .horizontal)
         favoriteBadge.addTarget(self, action: #selector(didTapFavoriteBadge), for: .valueChanged)
@@ -102,7 +76,7 @@ final class MovieSummaryCell: UITableViewCell {
 
         infoStackView.addArrangedSubview(yearLabel)
         infoStackView.addArrangedSubview(titleLabel)
-        infoStackView.addArrangedSubview(starsStackView)
+        infoStackView.addArrangedSubview(starRatingView)
 
         hStackView.addArrangedSubview(coverView)
         hStackView.setCustomSpacing(27, after: coverView)
@@ -138,13 +112,13 @@ final class MovieSummaryCell: UITableViewCell {
         onFavoriteToggle?(currentMovieID)
     }
 
-    private func updateStars(for rating: Double) {
-        // Ratings are 0...10 in payload, map to 0...5 stars.
-        let filledStars = max(0, min(5, Int((rating / 2.0).rounded())))
-
-        for (index, starImageView) in starImageViews.enumerated() {
-            starImageView.tintColor = index < filledStars ? filledStarColor : emptyStarColor
-        }
-    }
+//    private func updateStars(for rating: Double) {
+//        // Ratings are 0...10 in payload, map to 0...5 stars.
+//        let filledStars = max(0, min(5, Int((rating / 2.0).rounded())))
+//
+//        for (index, starImageView) in starImageViews.enumerated() {
+//            starImageView.tintColor = index < filledStars ? filledStarColor : emptyStarColor
+//        }
+//    }
 
 }

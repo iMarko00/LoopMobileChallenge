@@ -47,6 +47,7 @@ final class HomeFavoriteMovieCell: UICollectionViewCell {
         contentView.clipsToBounds = false
         clipsToBounds = false
         backgroundColor = .clear
+        coverView.isUserInteractionEnabled = false
 
         layer.shadowColor = UIColor.black.cgColor
         layer.shadowOpacity = 0.26

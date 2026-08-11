@@ -212,6 +212,7 @@ final class HomeViewController: UIViewController {
 
         favoritesCollectionView.dataSource = self
         favoritesCollectionView.delegate = self
+        favoritesCollectionView.allowsSelection = true
         favoritesCollectionView.register(
             HomeFavoriteMovieCell.self,
             forCellWithReuseIdentifier: String(describing: HomeFavoriteMovieCell.self)
@@ -346,6 +347,7 @@ final class HomeViewController: UIViewController {
         profileNameButton.setTitle(displayName, for: .normal)
     }
 
+    // TODO: Extract all of this into own Files
     private func setupSoftEdgeViews() {
         topSoftEdgeView.isUserInteractionEnabled = false
         bottomSoftEdgeView.isUserInteractionEnabled = false
@@ -473,6 +475,27 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
         }
         
         return CGSize(width: 182, height: 270)
+    }
+    
+    func collectionView(
+        _ collectionView: UICollectionView,
+        didSelectItemAt indexPath: IndexPath
+    ) {
+        guard indexPath.item < min(favoriteMovies.count, 3) else {
+            // handling moreButton 
+            return
+        }
+
+        let movie = favoriteMovies[indexPath.item]
+        let detailVC = MovieDetailViewController(movie: movie)
+
+        if let navigationController {
+            navigationController.pushViewController(detailVC, animated: true)
+        } else {
+            let navController = UINavigationController(rootViewController: detailVC)
+            navController.modalPresentationStyle = .pageSheet
+            present(navController, animated: true)
+        }
     }
 }
 
