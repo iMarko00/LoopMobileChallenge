@@ -10,7 +10,7 @@ import UIKit
 
 final class MainFactsView: UIView {
     private let mainFactsView = UIStackView()
-    private let starRatingView = StarRatingView(bigStar: true)
+    private let starRatingView = StarRatingView(bigStar: true, contentAlignment: .center)
     private let releaseDateAndRunTimeLabel = UILabel()
     private let titleAndReleaseYearLabel = UILabel()
     private var genresCollectionHeightConstraint: NSLayoutConstraint?
@@ -33,8 +33,13 @@ final class MainFactsView: UIView {
     private func setupLabels() {
         releaseDateAndRunTimeLabel.text = "\(cleanUpReleaseDate(date: movie.releaseDate)) · \(cleanedUpDuration(duration: movie.runtime))"
         releaseDateAndRunTimeLabel.textAlignment = .center
+        releaseDateAndRunTimeLabel.font = .preferredFont(forTextStyle: .body)
+        releaseDateAndRunTimeLabel.textColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.6)
         
-        titleAndReleaseYearLabel.text = "\(movie.title) (\(movie.releaseDate.prefix(4)))"
+        titleAndReleaseYearLabel.attributedText = createAttributedString(
+            title: movie.title,
+            releaseDate: movie.releaseDate
+        )
         titleAndReleaseYearLabel.textAlignment = .center
     }
     
@@ -48,7 +53,7 @@ final class MainFactsView: UIView {
         mainFactsView.addArrangedSubview(genresCollectionView)
         
         mainFactsView.axis = .vertical
-        mainFactsView.spacing = 4
+        mainFactsView.spacing = 12
         mainFactsView.alignment = .fill
         mainFactsView.translatesAutoresizingMaskIntoConstraints = false
         genresCollectionView.translatesAutoresizingMaskIntoConstraints = false
@@ -63,6 +68,20 @@ final class MainFactsView: UIView {
             mainFactsView.bottomAnchor.constraint(equalTo: bottomAnchor),
             collectionHeightConstraint
         ])
+    }
+    
+    private func createAttributedString(title: String, releaseDate: String) -> NSAttributedString {
+        let attributedText = NSMutableAttributedString(
+            string: title,
+            attributes: [.font: UIFont(name: "SFProText-Bold", size: 24) ?? .systemFont(ofSize: 24, weight: .bold)]
+        )
+        attributedText.append(
+            NSAttributedString(
+                string: "(\(releaseDate.prefix(4)))",
+                attributes: [.font: UIFont(name: "SFProText-Light", size: 24) ?? .systemFont(ofSize: 24, weight: .light), .foregroundColor: UIColor(red: 20 / 255.0, green: 28 / 255.0, blue: 37 / 255.0, alpha: 0.7)]
+            )
+        )
+        return attributedText
     }
     
     private func cleanUpReleaseDate(date: String) -> String {
@@ -81,16 +100,17 @@ final class MainFactsView: UIView {
     
     private func cleanedUpDuration(duration: Int) -> String {
         String(
-            format: "%02d:%02d",
+            format: "%dh %dm",
             Int(duration / 60),
             Int(duration.remainderReportingOverflow(dividingBy: 60).partialValue)
         )
     }
     
     private lazy var genresCollectionView: UICollectionView = {
-        let layout = UICollectionViewFlowLayout()
-        layout.minimumInteritemSpacing = 8
-        layout.minimumLineSpacing = 8
+        let layout = CenteredRowFlowLayout()
+        layout.minimumInteritemSpacing = 6
+        layout.minimumLineSpacing = 6
+        layout.sectionInset = .zero
 
         let collectionView = UICollectionView(
             frame: .zero,

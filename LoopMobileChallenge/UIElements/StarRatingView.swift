@@ -9,11 +9,18 @@ import Foundation
 import UIKit
 // bigger star review UI for the DetailScreen
 final class StarRatingView: UIView {
+    enum ContentAlignment {
+        case leading
+        case center
+    }
+
     private let filledStarColor = UIColor(red: 253.0 / 255.0, green: 158.0 / 255.0, blue: 2.0 / 255.0, alpha: 1.0)
     private let emptyStarColor = UIColor(red: 20.0 / 255.0, green: 28.0 / 255.0, blue: 37.0 / 255.0, alpha: 0.1)
     
     private let starsStackView = UIStackView()
     private var starImageViews: [UIImageView] = []
+    private let contentAlignment: ContentAlignment
+    private let starSpacing: CGFloat = 2
     
     private var bigStar: Bool = false
     private var starWidth: CGFloat {
@@ -23,15 +30,22 @@ final class StarRatingView: UIView {
         bigStar ? 14 : 12
     }
 
-    init(frame: CGRect = .zero, bigStar: Bool = false) {
+    init(frame: CGRect = .zero, bigStar: Bool = false, contentAlignment: ContentAlignment = .leading) {
         self.bigStar = bigStar
+        self.contentAlignment = contentAlignment
         super.init(frame: frame)
         setupUI()
     }
 
     required init?(coder: NSCoder) {
+        self.contentAlignment = .leading
         super.init(coder: coder)
         setupUI()
+    }
+
+    override var intrinsicContentSize: CGSize {
+        let width = (starWidth * 5) + (starSpacing * 4)
+        return CGSize(width: width, height: starHeight)
     }
     
     func configure(with rating: Double) {
@@ -43,24 +57,33 @@ final class StarRatingView: UIView {
 
         translatesAutoresizingMaskIntoConstraints = false
         starsStackView.axis = .horizontal
-        starsStackView.spacing = 2
+        starsStackView.spacing = starSpacing
         starsStackView.alignment = .center
         starsStackView.translatesAutoresizingMaskIntoConstraints = false
         starsStackView.setContentCompressionResistancePriority(.required, for: .horizontal)
         starsStackView.setContentHuggingPriority(.required, for: .horizontal)
 
         addSubview(starsStackView)
-        NSLayoutConstraint.activate([
-            starsStackView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            starsStackView.centerYAnchor.constraint(equalTo: centerYAnchor)
-        ])
+        switch contentAlignment {
+        case .leading:
+            NSLayoutConstraint.activate([
+                starsStackView.topAnchor.constraint(equalTo: topAnchor),
+                starsStackView.leadingAnchor.constraint(equalTo: leadingAnchor),
+                starsStackView.trailingAnchor.constraint(equalTo: trailingAnchor),
+                starsStackView.bottomAnchor.constraint(equalTo: bottomAnchor)
+            ])
+        case .center:
+            NSLayoutConstraint.activate([
+                starsStackView.centerXAnchor.constraint(equalTo: centerXAnchor),
+                starsStackView.centerYAnchor.constraint(equalTo: centerYAnchor)
+            ])
+        }
         
         for _ in 0..<5 {
             let starImageView = UIImageView()
             starImageView.translatesAutoresizingMaskIntoConstraints = false
             starImageView.contentMode = .scaleAspectFit
-            starImageView.tintColor = emptyStarColor
-            starImageView.image = UIImage(systemName: "star.fill")
+            starImageView.image = UIImage(resource: .imgStarUnfilled)
             starImageViews.append(starImageView)
             starsStackView.addArrangedSubview(starImageView)
             
@@ -78,7 +101,7 @@ final class StarRatingView: UIView {
         let filledStars = max(0, min(5, Int((rating / 2.0).rounded())))
 
         for (index, starImageView) in starImageViews.enumerated() {
-            starImageView.tintColor = index < filledStars ? filledStarColor : emptyStarColor
+            starImageView.image = index < filledStars ? UIImage(resource: .imgStarFilled) : UIImage(resource: .imgStarUnfilled)
         }
     }
 }
