@@ -14,7 +14,23 @@ final class DetailViewModel {
     }
     
     var movieRating: Double {
-        movie.rating
+        movie.rating.rounded()
+    }
+    
+    var movieBudget: String {
+        movie.budget.formatted()
+    }
+    
+    var movieRevenue: String {
+        movie.revenue.formatted()
+    }
+    
+    var movieOrgLanguage: String {
+        movie.language
+    }
+    
+    var movieReleaseDate: String {
+        String(movie.releaseDate.prefix(4))
     }
 
     var isFavorite: Bool {
