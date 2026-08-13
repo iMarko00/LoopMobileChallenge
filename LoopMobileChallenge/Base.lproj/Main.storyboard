@@ -34,5 +34,20 @@
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>
         </scene>
+        <!--Search View Controller-->
+        <scene sceneID="yXA-hY-tnE">
+            <objects>
+                <viewController storyboardIdentifier="SearchViewController" id="TRM-gH-2sD" customClass="SearchViewController" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="JwL-34-5wG">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="812"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <color key="backgroundColor" xcode11CocoaTouchSystemColor="systemBackgroundColor" cocoaTouchSystemColor="whiteColor"/>
+                        <viewLayoutGuide key="safeArea" id="L2v-KC-HMd"/>
+                    </view>
+                    <navigationItem key="navigationItem" title="All Movies" id="Dgy-eY-PcW"/>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="B9M-SM-9PR" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+        </scene>
     </scenes>
 </document>

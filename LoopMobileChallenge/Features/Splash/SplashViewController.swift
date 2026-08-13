@@ -48,9 +48,10 @@ final class SplashViewController: UIViewController {
 
         if profileStore.currentProfile != nil {
             let homeViewController = HomeViewController()
-            homeViewController.modalPresentationStyle = .fullScreen
-            homeViewController.modalTransitionStyle = .crossDissolve
-            present(homeViewController, animated: true)
+            let navigationController = UINavigationController(rootViewController: homeViewController)
+            navigationController.modalPresentationStyle = .fullScreen
+            navigationController.modalTransitionStyle = .crossDissolve
+            present(navigationController, animated: true)
             return
         }
 

@@ -49,6 +49,7 @@ final class HomeFavoriteMoviesMoreCell: UICollectionViewCell {
         
         moreButton.configuration = config
         moreButton.translatesAutoresizingMaskIntoConstraints = false
+        moreButton.isUserInteractionEnabled = false
         
         moreButton.layer.shadowColor = UIColor.black.cgColor
         moreButton.layer.shadowOpacity = 0.5

@@ -244,8 +244,10 @@ class SignUpViewController: UIViewController {
         if let navigationController {
             navigationController.pushViewController(nextViewController, animated: true)
         } else {
-            nextViewController.modalPresentationStyle = .fullScreen
-            present(nextViewController, animated: true)
+            let homeNavigationController = UINavigationController(rootViewController: nextViewController)
+            homeNavigationController.modalPresentationStyle = .fullScreen
+            homeNavigationController.modalTransitionStyle = .crossDissolve
+            present(homeNavigationController, animated: true)
         }
     }
 

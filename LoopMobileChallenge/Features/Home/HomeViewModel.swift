@@ -64,6 +64,18 @@ final public class HomeViewModel {
         onStateChange?(newState)
     }
     
+    var canOpenSearch: Bool {
+        if case .loaded = movieCatalog.state {
+            return true
+        }
+        
+        return false
+    }
+    
+    func makeSearchViewModel() -> SearchViewModel {
+        SearchViewModel(movieCatalog: movieCatalog, favoritesManager: favoritesManager)
+    }
+    
     var displayName: String {
         profileStore.currentProfile?.name ?? ""
     }

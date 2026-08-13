@@ -11,6 +11,8 @@ final class HomeViewController: UIViewController {
     private let bottomSoftEdgeView = UIView()
     private let topSoftEdgeLayer = CAGradientLayer()
     private let bottomSoftEdgeLayer = CAGradientLayer()
+    private let rowTapFeedbackGenerator = UIImpactFeedbackGenerator(style: .light)
+    private let moreButtonFeedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
 
     private let viewModel = HomeViewModel(
         movieCatalog: MovieCatalog(),
@@ -43,10 +45,14 @@ final class HomeViewController: UIViewController {
 
     private let searchButton: UIButton = {
         let button = UIButton(type: .system)
-        button.configuration = .glass()
+        var config = UIButton.Configuration.glass()
+        config.image = UIImage(systemName: "magnifyingglass")
+        config.contentInsets = .zero
+        config.cornerStyle = .capsule
+        button.configuration = config
         button.translatesAutoresizingMaskIntoConstraints = false
         button.tintColor = .label
-        button.setImage(UIImage(systemName: "magnifyingglass"), for: .normal)
+        button.isEnabled = false
         button.accessibilityLabel = "Search"
         return button
     }()
@@ -160,6 +166,8 @@ final class HomeViewController: UIViewController {
         super.viewWillAppear(animated)
 
         updateHeader()
+        rowTapFeedbackGenerator.prepare()
+        moreButtonFeedbackGenerator.prepare()
 
         guard needsRefresh else {
             return
@@ -175,6 +183,8 @@ final class HomeViewController: UIViewController {
         setupUI()
         bindViewModel()
         observeFavoritesChanges()
+        rowTapFeedbackGenerator.prepare()
+        moreButtonFeedbackGenerator.prepare()
 
         Task { [weak self] in
             guard let self else { return }
@@ -222,7 +232,6 @@ final class HomeViewController: UIViewController {
             forCellWithReuseIdentifier: String(describing: HomeFavoriteMoviesMoreCell.self)
         )
 
-        view.addSubview(searchButton)
         view.addSubview(contentScrollView)
         view.addSubview(topSoftEdgeView)
         view.addSubview(bottomSoftEdgeView)
@@ -238,12 +247,7 @@ final class HomeViewController: UIViewController {
         staffPicksTableHeightConstraint = tableHeightConstraint
 
         NSLayoutConstraint.activate([
-            searchButton.trailingAnchor.constraint(equalTo: view.layoutMarginsGuide.trailingAnchor),
-            searchButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
-            searchButton.widthAnchor.constraint(equalToConstant: 44),
-            searchButton.heightAnchor.constraint(equalToConstant: 44),
-
-            contentScrollView.topAnchor.constraint(equalTo: searchButton.bottomAnchor, constant: 4),
+            contentScrollView.topAnchor.constraint(equalTo: view.topAnchor, constant: 4),
             contentScrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             contentScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             contentScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -285,12 +289,25 @@ final class HomeViewController: UIViewController {
             tableHeightConstraint
         ])
 
+        NSLayoutConstraint.activate([
+            searchButton.widthAnchor.constraint(equalToConstant: 44),
+            searchButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        navigationItem.rightBarButtonItem = UIBarButtonItem(customView: searchButton)
         setupSoftEdgeViews()
         updateHeader()
     }
-
+    
     @objc private func didTapSearch() {
-        // Intentionally empty until Search screen wiring is implemented.
+        guard viewModel.canOpenSearch,
+              let navigationController,
+              let searchViewController = SearchViewController.instantiate(
+                viewModel: viewModel.makeSearchViewModel()
+              ) else {
+            return
+        }
+        
+        navigationController.pushViewController(searchViewController, animated: true)
     }
 
     private func bindViewModel() {
@@ -305,12 +322,15 @@ final class HomeViewController: UIViewController {
         case .loading:
             movies = []
             favoriteMovies = []
+            searchButton.isEnabled = false
         case .loaded(let allMovies, let favorites):
             movies = allMovies
             favoriteMovies = favorites
+            searchButton.isEnabled = true
         case .failed:
             movies = []
             favoriteMovies = []
+            searchButton.isEnabled = false
         }
 
         updateFavoritesEmptyState()
@@ -390,6 +410,23 @@ final class HomeViewController: UIViewController {
         }
     }
 
+    private func showMoreFeatureNotImplementedAlert() {
+        let alertController = UIAlertController(
+            title: nil,
+            message: "this feature wasnt implemented on purpose",
+            preferredStyle: .alert
+        )
+        alertController.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alertController, animated: true)
+    }
+
+    private func presentMovieDetail(_ movie: Movie) {
+        let detailVC = MovieDetailViewController(movie: movie)
+        let navController = UINavigationController(rootViewController: detailVC)
+        navController.modalPresentationStyle = .pageSheet
+        present(navController, animated: true)
+    }
+
     private func makeProfileMenu() -> UIMenu {
         let deleteAction = UIAction(
             title: "Delete profile and restart app",
@@ -442,11 +479,19 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+        rowTapFeedbackGenerator.impactOccurred()
+        rowTapFeedbackGenerator.prepare()
+
         let movie = movies[indexPath.row]
-        let detailVC = MovieDetailViewController(movie: movie)
-        let navController = UINavigationController(rootViewController: detailVC)
-        navController.modalPresentationStyle = .pageSheet
-        present(navController, animated: true)
+
+        if let cell = tableView.cellForRow(at: indexPath) {
+            TapInteractionFeedback.darkenFlash(on: cell.contentView) { [weak self] in
+                self?.presentMovieDetail(movie)
+            }
+            return
+        }
+
+        presentMovieDetail(movie)
     }
 }
 
@@ -491,20 +536,32 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
         didSelectItemAt indexPath: IndexPath
     ) {
         guard indexPath.item < min(favoriteMovies.count, 3) else {
-            // handling moreButton 
+            moreButtonFeedbackGenerator.impactOccurred()
+            moreButtonFeedbackGenerator.prepare()
+
+            if let moreCell = collectionView.cellForItem(at: indexPath) {
+                TapInteractionFeedback.pulseExpand(on: moreCell.contentView) { [weak self] in
+                    self?.showMoreFeatureNotImplementedAlert()
+                }
+                return
+            }
+
+            showMoreFeatureNotImplementedAlert()
             return
         }
 
         let movie = favoriteMovies[indexPath.item]
-        let detailVC = MovieDetailViewController(movie: movie)
+        moreButtonFeedbackGenerator.impactOccurred()
+        moreButtonFeedbackGenerator.prepare()
 
-        if let navigationController {
-            navigationController.pushViewController(detailVC, animated: true)
-        } else {
-            let navController = UINavigationController(rootViewController: detailVC)
-            navController.modalPresentationStyle = .pageSheet
-            present(navController, animated: true)
+        if let cell = collectionView.cellForItem(at: indexPath) {
+            TapInteractionFeedback.pulseExpand(on: cell.contentView) { [weak self] in
+                self?.presentMovieDetail(movie)
+            }
+            return
         }
+
+        presentMovieDetail(movie)
     }
 }
 

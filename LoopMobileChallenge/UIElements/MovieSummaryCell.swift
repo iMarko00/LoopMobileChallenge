@@ -10,6 +10,15 @@ final class MovieSummaryCell: UITableViewCell {
     private let hStackView = UIStackView()
     private let starRatingView = StarRatingView()
     private var currentMovieID: Int?
+    private var hStackLeadingConstraint: NSLayoutConstraint?
+    private var hStackTrailingConstraint: NSLayoutConstraint?
+
+    var horizontalContentInset: CGFloat = 0 {
+        didSet {
+            hStackLeadingConstraint?.constant = horizontalContentInset
+            hStackTrailingConstraint?.constant = -horizontalContentInset
+        }
+    }
 
     var onFavoriteToggle: ((Int) -> Void)?
 
@@ -39,6 +48,7 @@ final class MovieSummaryCell: UITableViewCell {
         currentMovieID = nil
         onFavoriteToggle = nil
         favoriteBadge.isFavorite = false
+        horizontalContentInset = 0
     }
 
     private func setupUI() {
@@ -93,10 +103,13 @@ final class MovieSummaryCell: UITableViewCell {
         titleTargetWidth.priority = .required
         titleTargetWidth.isActive = true
 
+        hStackLeadingConstraint = hStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor)
+        hStackTrailingConstraint = hStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
+
         NSLayoutConstraint.activate([
             hStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
-            hStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            hStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            hStackLeadingConstraint!,
+            hStackTrailingConstraint!,
             hStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
 
             coverView.widthAnchor.constraint(equalToConstant: 64),
@@ -105,20 +118,12 @@ final class MovieSummaryCell: UITableViewCell {
             favoriteBadge.widthAnchor.constraint(equalToConstant: 18),
             favoriteBadge.heightAnchor.constraint(equalToConstant: 18)
         ])
+
+        horizontalContentInset = 0
     }
 
     @objc private func didTapFavoriteBadge() {
         guard let currentMovieID else { return }
         onFavoriteToggle?(currentMovieID)
     }
-
-//    private func updateStars(for rating: Double) {
-//        // Ratings are 0...10 in payload, map to 0...5 stars.
-//        let filledStars = max(0, min(5, Int((rating / 2.0).rounded())))
-//
-//        for (index, starImageView) in starImageViews.enumerated() {
-//            starImageView.tintColor = index < filledStars ? filledStarColor : emptyStarColor
-//        }
-//    }
-
 }
