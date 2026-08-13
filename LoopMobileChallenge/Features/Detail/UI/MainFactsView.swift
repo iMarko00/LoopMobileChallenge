@@ -162,7 +162,7 @@ extension MainFactsView: UICollectionViewDelegateFlowLayout {
             .font: font
         ]).width
 
-        let horizontalPadding: CGFloat = 16
+        let horizontalPadding: CGFloat = 20
 
         return CGSize(
             width: ceil(textWidth) + horizontalPadding,

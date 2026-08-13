@@ -439,6 +439,15 @@ extension HomeViewController: UITableViewDataSource, UITableViewDelegate {
         }
         return cell
     }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        let movie = movies[indexPath.row]
+        let detailVC = MovieDetailViewController(movie: movie)
+        let navController = UINavigationController(rootViewController: detailVC)
+        navController.modalPresentationStyle = .pageSheet
+        present(navController, animated: true)
+    }
 }
 
 extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {

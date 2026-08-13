@@ -27,8 +27,8 @@ final class GenreCell: UICollectionViewCell {
         NSLayoutConstraint.activate([
             label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 2),
             label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -2),
-            label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            label.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8)
+            label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 10),
+            label.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10)
         ])
     }
 
