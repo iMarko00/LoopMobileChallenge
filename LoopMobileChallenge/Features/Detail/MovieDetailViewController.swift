@@ -15,7 +15,7 @@ final class MovieDetailViewController: UIViewController {
     private let contentView = UIView()
     private let coverView = MovieCoverView()
     private let mainFactsView: MainFactsView
-    private let overviewSectionView = OverviewSectionView()
+    private lazy var overviewSectionView = OverviewSectionView(overview: overviewText)
     private lazy var keyFactsGridView = KeyFactsGridView(items: keyFactsItems)
 
     private let favoriteButton = UIButton(type: .system)
@@ -130,6 +130,10 @@ final class MovieDetailViewController: UIViewController {
         button.tintColor = .label
         button.contentHorizontalAlignment = .center
         button.contentVerticalAlignment = .center
+    }
+    
+    private var overviewText: String {
+        viewModel.movieOverview
     }
 
     private var keyFactsItems: [KeyFactsGridItem] {

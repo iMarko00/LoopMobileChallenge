@@ -160,12 +160,12 @@ private final class KeyFactsGridCell: UICollectionViewCell {
             trailing: 12
         )
 
-        titleLabel.font = .preferredFont(forTextStyle: .caption1)
-        titleLabel.textColor = .secondaryLabel
+        titleLabel.font = .systemFont(ofSize: 12, weight: .bold)
+        titleLabel.textColor = UIColor(red: 20 / 255, green: 28 / 255, blue: 37 / 255, alpha: 0.7)
         titleLabel.numberOfLines = 0
         titleLabel.adjustsFontForContentSizeCategory = true
 
-        valueLabel.font = .preferredFont(forTextStyle: .body)
+        valueLabel.font = .systemFont(ofSize: 16, weight: .light)
         valueLabel.textColor = .label
         valueLabel.numberOfLines = 0
         valueLabel.adjustsFontForContentSizeCategory = true

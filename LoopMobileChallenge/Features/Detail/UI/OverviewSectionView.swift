@@ -12,8 +12,10 @@ final class OverviewSectionView: UIView {
     let overviewView = UIStackView()
     let overviewLabel = UILabel()
     let movieDescription = UILabel()
+    var overview: String
     
-    init() {
+    init(overview: String) {
+        self.overview = overview
         super.init(frame: .zero)
         setupLabels()
         setupUI()
@@ -28,10 +30,18 @@ final class OverviewSectionView: UIView {
         overviewLabel.textColor = .black
         overviewLabel.text = "Overview"
         
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 6
+
+        movieDescription.attributedText = NSAttributedString(
+            string: overview,
+            attributes: [
+                .paragraphStyle: paragraphStyle
+            ]
+        )
         movieDescription.font = .systemFont(ofSize: 16, weight: .light)
         movieDescription.textColor = UIColor(red: 20 / 255, green: 28 / 255, blue: 37 / 255, alpha: 0.7)
         movieDescription.numberOfLines = 0
-        movieDescription.text = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum."
     }
     
     private func setupUI() {
@@ -42,7 +52,7 @@ final class OverviewSectionView: UIView {
         overviewView.addArrangedSubview(movieDescription)
         
         overviewView.axis = .vertical
-        overviewView.spacing = 4
+        overviewView.spacing = 16
         overviewView.alignment = .fill
         overviewView.translatesAutoresizingMaskIntoConstraints = false
         
