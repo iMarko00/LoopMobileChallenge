@@ -2,6 +2,33 @@
 
 UIKit iOS app for browsing movies, viewing details, and managing favorites.
 
+## Screenshots
+
+<table>
+  <tr>
+      <td align="center">
+      <img src="Screenshots/signup.png" width="250"><br>
+      <b>Signup</b>
+    </td>
+    <td align="center">
+      <img src="Screenshots/home.png" width="250"><br>
+      <b>Home</b>
+    </td>
+    <td align="center">
+      <img src="Screenshots/detail.png" width="250"><br>
+      <b>Movie Details</b>
+    </td>
+    <td align="center">
+      <img src="Screenshots/search.png" width="250"><br>
+      <b>Search</b>
+    </td>
+    <td align="center">
+      <img src="Screenshots/home_bonus.png" width="250"><br>
+      <b>Home bonus to restart the app and check the signup once again.</b>
+    </td>
+  </tr>
+</table>
+
 ## Project at a glance
 
 - Feature-based structure (Home, Search, Detail, SignUp, Splash)
