@@ -6,11 +6,7 @@ final class HomeViewController: UIViewController {
     private var movies: [Movie] = []
     private var favoriteMovies: [Movie] = []
     private var staffPicksTableHeightConstraint: NSLayoutConstraint?
-    private let softEdgeHeight: CGFloat = 20
-    private let topSoftEdgeView = UIView()
-    private let bottomSoftEdgeView = UIView()
-    private let topSoftEdgeLayer = CAGradientLayer()
-    private let bottomSoftEdgeLayer = CAGradientLayer()
+    private let scrollSoftEdgeEffect = ScrollSoftEdgeEffect(height: 20)
     private let rowTapFeedbackGenerator = UIImpactFeedbackGenerator(style: .light)
     private let moreButtonFeedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
 
@@ -143,6 +139,50 @@ final class HomeViewController: UIViewController {
         return view
     }()
 
+    private let stateOverlayView: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.backgroundColor = .systemBackground
+        view.isHidden = true
+        return view
+    }()
+
+    private let loadingSpinner: UIActivityIndicatorView = {
+        let spinner = UIActivityIndicatorView(style: .large)
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        spinner.hidesWhenStopped = true
+        return spinner
+    }()
+
+    private let failedStateStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .vertical
+        stackView.alignment = .center
+        stackView.spacing = 16
+        stackView.isHidden = true
+        return stackView
+    }()
+
+    private let failedStateLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = "Something went wrong"
+        label.font = UIFont(name: "SFProText-Semibold", size: 20) ?? .systemFont(ofSize: 20, weight: .semibold)
+        label.textColor = .label
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        return label
+    }()
+
+    private let retryButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setTitle("Try again", for: .normal)
+        button.titleLabel?.font = UIFont(name: "SFProText-Bold", size: 16) ?? .systemFont(ofSize: 16, weight: .bold)
+        return button
+    }()
+
     private let headerStackView: UIStackView = {
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
@@ -201,8 +241,7 @@ final class HomeViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         updateStaffPicksTableHeight()
-        updateSoftEdgeLayerFrames()
-        updateSoftEdgeVisibility()
+        scrollSoftEdgeEffect.updateFrames()
     }
 
     private func setupUI() {
@@ -212,9 +251,6 @@ final class HomeViewController: UIViewController {
         profileNameButton.menu = makeProfileMenu()
         profileNameButton.showsMenuAsPrimaryAction = false
         searchButton.addTarget(self, action: #selector(didTapSearch), for: .touchUpInside)
-        contentScrollView.delegate = self
-        topSoftEdgeView.translatesAutoresizingMaskIntoConstraints = false
-        bottomSoftEdgeView.translatesAutoresizingMaskIntoConstraints = false
 
         staffPicksTableView.dataSource = self
         staffPicksTableView.delegate = self
@@ -233,8 +269,13 @@ final class HomeViewController: UIViewController {
         )
 
         view.addSubview(contentScrollView)
-        view.addSubview(topSoftEdgeView)
-        view.addSubview(bottomSoftEdgeView)
+        view.addSubview(stateOverlayView)
+
+        stateOverlayView.addSubview(loadingSpinner)
+        stateOverlayView.addSubview(failedStateStackView)
+        failedStateStackView.addArrangedSubview(failedStateLabel)
+        failedStateStackView.addArrangedSubview(retryButton)
+
         contentScrollView.addSubview(contentContainerView)
 
         contentContainerView.addSubview(headerStackView)
@@ -252,15 +293,18 @@ final class HomeViewController: UIViewController {
             contentScrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             contentScrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            topSoftEdgeView.topAnchor.constraint(equalTo: contentScrollView.topAnchor),
-            topSoftEdgeView.leadingAnchor.constraint(equalTo: contentScrollView.leadingAnchor),
-            topSoftEdgeView.trailingAnchor.constraint(equalTo: contentScrollView.trailingAnchor),
-            topSoftEdgeView.heightAnchor.constraint(equalToConstant: softEdgeHeight),
+            stateOverlayView.topAnchor.constraint(equalTo: view.topAnchor),
+            stateOverlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            stateOverlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            stateOverlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            bottomSoftEdgeView.bottomAnchor.constraint(equalTo: contentScrollView.bottomAnchor),
-            bottomSoftEdgeView.leadingAnchor.constraint(equalTo: contentScrollView.leadingAnchor),
-            bottomSoftEdgeView.trailingAnchor.constraint(equalTo: contentScrollView.trailingAnchor),
-            bottomSoftEdgeView.heightAnchor.constraint(equalToConstant: softEdgeHeight),
+            loadingSpinner.centerXAnchor.constraint(equalTo: stateOverlayView.centerXAnchor),
+            loadingSpinner.centerYAnchor.constraint(equalTo: stateOverlayView.centerYAnchor),
+
+            failedStateStackView.centerXAnchor.constraint(equalTo: stateOverlayView.centerXAnchor),
+            failedStateStackView.centerYAnchor.constraint(equalTo: stateOverlayView.centerYAnchor),
+            failedStateStackView.leadingAnchor.constraint(greaterThanOrEqualTo: stateOverlayView.leadingAnchor, constant: 24),
+            failedStateStackView.trailingAnchor.constraint(lessThanOrEqualTo: stateOverlayView.trailingAnchor, constant: -24),
 
             contentContainerView.topAnchor.constraint(equalTo: contentScrollView.contentLayoutGuide.topAnchor),
             contentContainerView.leadingAnchor.constraint(equalTo: contentScrollView.contentLayoutGuide.leadingAnchor),
@@ -294,7 +338,8 @@ final class HomeViewController: UIViewController {
             searchButton.heightAnchor.constraint(equalToConstant: 44)
         ])
         navigationItem.rightBarButtonItem = UIBarButtonItem(customView: searchButton)
-        setupSoftEdgeViews()
+        retryButton.addTarget(self, action: #selector(didTapRetry), for: .touchUpInside)
+        scrollSoftEdgeEffect.install(on: contentScrollView, in: view)
         updateHeader()
     }
     
@@ -310,6 +355,15 @@ final class HomeViewController: UIViewController {
         navigationController.pushViewController(searchViewController, animated: true)
     }
 
+    @objc private func didTapRetry() {
+        setScreenState(.loading)
+
+        Task { [weak self] in
+            guard let self else { return }
+            await self.viewModel.loadCatalog()
+        }
+    }
+
     private func bindViewModel() {
         viewModel.onStateChange = { [weak self] state in
             guard let self else { return }
@@ -323,14 +377,17 @@ final class HomeViewController: UIViewController {
             movies = []
             favoriteMovies = []
             searchButton.isEnabled = false
+            setScreenState(.loading)
         case .loaded(let allMovies, let favorites):
             movies = allMovies
             favoriteMovies = favorites
             searchButton.isEnabled = true
+            setScreenState(.content)
         case .failed:
             movies = []
             favoriteMovies = []
             searchButton.isEnabled = false
+            setScreenState(.failed)
         }
 
         updateFavoritesEmptyState()
@@ -339,9 +396,32 @@ final class HomeViewController: UIViewController {
         favoritesCollectionView.reloadData()
         updateStaffPicksTableHeight()
 
-        // Recalculate after the run loop to capture final auto-layout cell heights.
+        // Recalculate after the run loop to capture final auto-layout cell heights
         DispatchQueue.main.async { [weak self] in
             self?.updateStaffPicksTableHeight()
+        }
+    }
+
+    private enum ScreenState {
+        case content
+        case loading
+        case failed
+    }
+
+    private func setScreenState(_ state: ScreenState) {
+        switch state {
+        case .content:
+            stateOverlayView.isHidden = true
+            failedStateStackView.isHidden = true
+            loadingSpinner.stopAnimating()
+        case .loading:
+            stateOverlayView.isHidden = false
+            failedStateStackView.isHidden = true
+            loadingSpinner.startAnimating()
+        case .failed:
+            stateOverlayView.isHidden = false
+            loadingSpinner.stopAnimating()
+            failedStateStackView.isHidden = false
         }
     }
 
@@ -367,47 +447,26 @@ final class HomeViewController: UIViewController {
         profileNameButton.setTitle(displayName, for: .normal)
     }
 
-    // TODO: Extract all of this into own Files
-    private func setupSoftEdgeViews() {
-        topSoftEdgeView.isUserInteractionEnabled = false
-        bottomSoftEdgeView.isUserInteractionEnabled = false
-
-        let baseColor = (view.backgroundColor ?? .systemBackground).resolvedColor(with: traitCollection)
-
-        topSoftEdgeLayer.colors = [baseColor.cgColor, baseColor.withAlphaComponent(0).cgColor]
-        topSoftEdgeLayer.locations = [0, 1]
-
-        bottomSoftEdgeLayer.colors = [baseColor.withAlphaComponent(0).cgColor, baseColor.cgColor]
-        bottomSoftEdgeLayer.locations = [0, 1]
-
-        topSoftEdgeView.layer.addSublayer(topSoftEdgeLayer)
-        bottomSoftEdgeView.layer.addSublayer(bottomSoftEdgeLayer)
-    }
-
-    private func updateSoftEdgeLayerFrames() {
-        topSoftEdgeLayer.frame = topSoftEdgeView.bounds
-        bottomSoftEdgeLayer.frame = bottomSoftEdgeView.bounds
-    }
-
-    private func updateSoftEdgeVisibility() {
-        let topOffset = contentScrollView.contentOffset.y + contentScrollView.adjustedContentInset.top
-        let maxOffset = max(
-            0,
-            contentScrollView.contentSize.height - contentScrollView.bounds.height + contentScrollView.adjustedContentInset.bottom
-        )
-
-        topSoftEdgeView.alpha = topOffset > 0.5 ? 1 : 0
-        bottomSoftEdgeView.alpha = topOffset < (maxOffset - 0.5) ? 1 : 0
-    }
-
     private func observeFavoritesChanges() {
         favoritesObserver = NotificationCenter.default.addObserver(
             forName: .favoritesDidChange,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.needsRefresh = true
+            self?.handleFavoritesDidChange()
         }
+    }
+
+    private func handleFavoritesDidChange() {
+        needsRefresh = true
+
+        // If no modal is covering Home, update immediately so favorites stay in sync
+        guard presentedViewController == nil else {
+            return
+        }
+
+        viewModel.refreshViewState()
+        needsRefresh = false
     }
 
     private func showMoreFeatureNotImplementedAlert() {
@@ -422,6 +481,10 @@ final class HomeViewController: UIViewController {
 
     private func presentMovieDetail(_ movie: Movie) {
         let detailVC = MovieDetailViewController(movie: movie)
+        detailVC.onClose = { [weak self] in
+            self?.viewModel.refreshViewState()
+            self?.needsRefresh = false
+        }
         let navController = UINavigationController(rootViewController: detailVC)
         navController.modalPresentationStyle = .pageSheet
         present(navController, animated: true)
@@ -562,15 +625,5 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
         }
 
         presentMovieDetail(movie)
-    }
-}
-
-extension HomeViewController: UIScrollViewDelegate {
-    func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        guard scrollView === contentScrollView else {
-            return
-        }
-
-        updateSoftEdgeVisibility()
     }
 }

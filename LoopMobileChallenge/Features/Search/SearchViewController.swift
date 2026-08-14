@@ -6,6 +6,7 @@ final class SearchViewController: UIViewController {
     private var favoritesObserver: NSObjectProtocol?
     private var movies: [Movie] = []
     private var currentQuery = ""
+    private let tableSoftEdgeEffect = ScrollSoftEdgeEffect(height: 20)
     private let rowTapFeedbackGenerator = UIImpactFeedbackGenerator(style: .light)
 
     private lazy var tableView: UITableView = {
@@ -14,6 +15,7 @@ final class SearchViewController: UIViewController {
         tableView.rowHeight = 101
         tableView.estimatedRowHeight = 101
         tableView.separatorStyle = .none
+        tableView.backgroundColor = .clear
         tableView.dataSource = self
         tableView.delegate = self
         tableView.register(
@@ -33,7 +35,19 @@ final class SearchViewController: UIViewController {
         return label
     }()
 
-    private let searchController = UISearchController(searchResultsController: nil)
+    private let searchBar: UISearchBar = {
+        let searchBar = UISearchBar()
+        searchBar.translatesAutoresizingMaskIntoConstraints = false
+        searchBar.placeholder = "Search"
+        searchBar.backgroundImage = UIImage()
+        searchBar.barTintColor = .systemBackground
+        searchBar.backgroundColor = .systemBackground
+        searchBar.searchTextField.textColor = .black
+        searchBar.searchTextField.leftView?.tintColor = .black
+        searchBar.autocapitalizationType = .none
+        searchBar.returnKeyType = .search
+        return searchBar
+    }()
 
     static func instantiate(viewModel: SearchViewModel) -> SearchViewController? {
         let storyboard = UIStoryboard(name: "Main", bundle: nil)
@@ -51,7 +65,7 @@ final class SearchViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         title = "All Movies"
-        setupSearchController()
+        setupSearchBar()
         setupUI()
         bindViewModel()
         observeFavoritesChanges()
@@ -71,26 +85,32 @@ final class SearchViewController: UIViewController {
         needsRefresh = false
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        tableSoftEdgeEffect.updateFrames()
+    }
+
     deinit {
         if let favoritesObserver {
             NotificationCenter.default.removeObserver(favoritesObserver)
         }
     }
 
-    private func setupSearchController() {
-        searchController.searchResultsUpdater = self
-        searchController.obscuresBackgroundDuringPresentation = false
-        navigationItem.searchController = searchController
-        navigationItem.hidesSearchBarWhenScrolling = false
-        definesPresentationContext = true
+    private func setupSearchBar() {
+        searchBar.delegate = self
     }
 
     private func setupUI() {
+        view.addSubview(searchBar)
         view.addSubview(tableView)
         view.addSubview(noResultsLabel)
 
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            searchBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            searchBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            searchBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+
+            tableView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 30),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -100,6 +120,8 @@ final class SearchViewController: UIViewController {
             noResultsLabel.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 20),
             noResultsLabel.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20)
         ])
+
+        tableSoftEdgeEffect.install(on: tableView, in: view)
     }
 
     private func bindViewModel() {
@@ -139,9 +161,13 @@ final class SearchViewController: UIViewController {
     }
 }
 
-extension SearchViewController: UISearchResultsUpdating {
-    func updateSearchResults(for searchController: UISearchController) {
-        viewModel?.updateQuery(searchController.searchBar.text ?? "")
+extension SearchViewController: UISearchBarDelegate {
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        viewModel?.updateQuery(searchText)
+    }
+
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
     }
 }
 

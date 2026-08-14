@@ -22,6 +22,7 @@ final public class HomeViewModel {
     }
 
     func loadCatalog() async {
+        setViewState(.loading)
         await movieCatalog.load()
         refreshViewState()
     }
@@ -33,6 +34,16 @@ final public class HomeViewModel {
         case .failed(let error):
             setViewState(.failed(error))
         case .loaded:
+            guard !movieCatalog.allMovieIDs.isEmpty else {
+                let error = NSError(
+                    domain: "HomeViewModel",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "Movie catalog is empty"]
+                )
+                setViewState(.failed(error))
+                return
+            }
+
             let movies = movieCatalog.staffPickIDs.compactMap { movieCatalog.movie(for: $0) }
             let favorites = movieCatalog.allMovieIDs
                 .filter { favoritesManager.isFavorite(id: $0) }

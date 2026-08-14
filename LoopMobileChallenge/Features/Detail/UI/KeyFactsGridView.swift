@@ -20,7 +20,7 @@ public enum Constants {
     static let cellHeight: CGFloat = 66
     static let collectionHeight: CGFloat = 180
     static let cellCornerRadius: CGFloat = 12
-    static let titleSpacing: CGFloat = 4
+    static let titleSpacing: CGFloat = 2
 }
 
 final class KeyFactsGridView: UIView {
@@ -156,7 +156,7 @@ private final class KeyFactsGridCell: UICollectionViewCell {
         stackView.directionalLayoutMargins = NSDirectionalEdgeInsets(
             top: 8,
             leading: 12,
-            bottom: 8,
+            bottom: 14,
             trailing: 12
         )
 

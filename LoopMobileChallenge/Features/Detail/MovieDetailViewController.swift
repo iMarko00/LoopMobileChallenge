@@ -9,6 +9,9 @@ import Foundation
 import UIKit
 
 final class MovieDetailViewController: UIViewController {
+    var onClose: (() -> Void)?
+
+    private var hasNotifiedClose = false
     
     private let viewModel: DetailViewModel
     private let scrollView = UIScrollView()
@@ -50,6 +53,19 @@ final class MovieDetailViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         updateHeaderButtonShapes()
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+
+        // Notify parent when this detail screen is actually gone (dismissed or popped).
+        let disappearedFromStack = isBeingDismissed || isMovingFromParent || (navigationController?.isBeingDismissed ?? false)
+        guard disappearedFromStack, !hasNotifiedClose else {
+            return
+        }
+
+        hasNotifiedClose = true
+        onClose?()
     }
     
     private func setupUI() {
